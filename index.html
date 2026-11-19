@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AE TRPG 骰子</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                            600: '#374151',
+                            500: '#4b5563',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/buttons.css">
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- 頂部導覽列：基礎檢定群組 與 法術書群組 明確分開 -->
+        <header class="bg-dark-800 border-2 border-dark-700 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col xl:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl">🎲</span>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black text-amber-400 tracking-wide">AE TRPG 骰子</h1>
+                    <div id="headerSeedBadge" class="text-xs font-bold text-gray-400 mt-0.5">目前存檔：未命名 (#000000)</div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <!-- 群組一：角色與檢定 -->
+                <div class="flex items-center bg-dark-900 p-1.5 rounded-2xl border-2 border-dark-600 gap-2">
+                    <span class="text-xs font-black text-gray-400 px-2 hidden sm:inline">檢定</span>
+                    <button onclick="switchTab('sheet')" id="tabBtn_sheet" class="tactile-btn tab-active px-5 py-2.5 rounded-xl font-black text-base sm:text-lg">
+                        數值填寫
+                    </button>
+                    <button onclick="switchTab('roller')" id="tabBtn_roller" class="tactile-btn tab-idle px-5 py-2.5 rounded-xl font-black text-base sm:text-lg">
+                        檢定主頁
+                    </button>
+                </div>
+
+                <!-- 群組二：法術書獨立區塊（非施法職業可收合隱藏） -->
+                <div id="spellNavGroup" class="flex items-center bg-indigo-950/40 p-1.5 rounded-2xl border-2 border-indigo-700/70 gap-2">
+                    <span class="text-xs font-black text-indigo-300 px-2 hidden sm:inline">法術書</span>
+                    <button onclick="switchTab('spell_cfg')" id="tabBtn_spell_cfg" class="tactile-btn tab-idle px-5 py-2.5 rounded-xl font-black text-base sm:text-lg">
+                        法術設定
+                    </button>
+                    <button onclick="switchTab('spellbook')" id="tabBtn_spellbook" class="tactile-btn tab-idle px-5 py-2.5 rounded-xl font-black text-base sm:text-lg">
+                        法術施法
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="toggleSpellSystemVisible()" id="btnToggleSpellNav" class="tactile-btn step-btn px-4 py-2.5 bg-dark-900 hover:bg-dark-700 border-2 border-dark-600 text-gray-300 rounded-2xl font-black text-sm">
+                    隱藏法術書
+                </button>
+                <button onclick="toggleSoundMute()" id="btnSoundToggle" class="tactile-btn step-btn px-4 py-2.5 bg-indigo-900/70 hover:bg-indigo-800 border-2 border-indigo-500 text-indigo-200 rounded-2xl font-black text-sm">
+                    音效：開啟
+                </button>
+            </div>
+        </header>
+
+        <!-- 凍結窗格 -->
+        <div class="sticky top-4 z-50 bg-dark-800/95 backdrop-blur-md border-4 border-amber-500 rounded-3xl p-6 shadow-2xl transition-all" id="stickyResultBox">
+            <div class="grid grid-cols-1 lg:grid-cols-12 items-center gap-6">
+                <div class="lg:col-span-4 flex bg-dark-900 p-2 rounded-2xl border-2 border-dark-600 gap-2">
+                    <button onclick="setAdvantageMode('normal')" id="btn_adv_normal" class="tactile-btn adv-active flex-1 py-3 font-black text-lg rounded-xl">
+                        一般
+                    </button>
+                    <button onclick="setAdvantageMode('advantage')" id="btn_adv_advantage" class="tactile-btn adv-idle flex-1 py-3 font-black text-lg rounded-xl">
+                        優勢
+                    </button>
+                    <button onclick="setAdvantageMode('disadvantage')" id="btn_adv_disadvantage" class="tactile-btn adv-idle flex-1 py-3 font-black text-lg rounded-xl">
+                        劣勢
+                    </button>
+                </div>
+
+                <div class="lg:col-span-4 flex flex-col items-center justify-center">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">即時擲骰結果</div>
+                    <div id="stickyTotal" class="text-6xl sm:text-7xl font-black text-white px-10 py-2 bg-dark-900 rounded-2xl border-2 border-amber-500 shadow-inner">
+                        -
+                    </div>
+                </div>
+
+                <div class="lg:col-span-4 flex flex-col justify-center space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span id="stickyIcon" class="text-2xl">✨</span>
+                        <div id="stickyTitle" class="text-xl font-black text-amber-300">尚未進行擲骰</div>
+                    </div>
+                    <div id="stickyBreakdown" class="text-sm text-gray-300 font-bold leading-relaxed">請至「檢定主頁」或「法術施法」點擊按鈕擲骰</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 四個分頁容器 -->
+        <div id="page_sheet" class="space-y-8"></div>
+        <div id="page_roller" class="hidden space-y-8"></div>
+        <div id="page_spell_cfg" class="hidden space-y-8"></div>
+        <div id="page_spellbook" class="hidden space-y-8"></div>
+
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/sound.js"></script>
+    <script src="js/dice.js"></script>
+    <script src="js/page-sheet.js"></script>
+    <script src="js/page-roller.js"></script>
+    <script src="js/page-spell-cfg.js"></script>
+    <script src="js/page-spellbook.js"></script>
+    <script>
+        const ALL_TABS = ['sheet', 'roller', 'spell_cfg', 'spellbook'];
+        let currentActiveTab = 'sheet';
+
+        function switchTab(tab) {
+            currentActiveTab = tab;
+            ALL_TABS.forEach(t => {
+                const btn = document.getElementById(`tabBtn_${t}`);
+                const page = document.getElementById(`page_${t}`);
+                const active = t === tab;
+                if (btn) {
+                    btn.className = active
+                        ? "tactile-btn tab-active px-5 py-2.5 rounded-xl font-black text-base sm:text-lg"
+                        : "tactile-btn tab-idle px-5 py-2.5 rounded-xl font-black text-base sm:text-lg";
+                }
+                if (page) {
+                    page.classList.toggle('hidden', !active);
+                }
+            });
+
+            if (tab === 'sheet') refreshAllSheetUI();
+            if (tab === 'roller') renderRollerPage();
+            if (tab === 'spell_cfg') renderSpellConfigPage();
+            if (tab === 'spellbook') renderSpellbookPage();
+        }
+
+        window.onload = function () {
+            loadFromLocalStorage();
+            renderSheetPage();
+            refreshAllSheetUI();
+            renderRollerPage();
+            renderSpellConfigPage();
+            renderSpellbookPage();
+            updateSpellNavVisibilityUI();
+            updateSoundToggleButton();
+            updateSeedTrackingUI();
+        };
+    </script>
+</body>
+</html>
